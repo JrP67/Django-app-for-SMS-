@@ -1,1 +1,128 @@
+{% extends "sms_app/base.html" %}
+{% block title %}Delivery History{% endblock %}
 
+{% block content %}
+<div class="page-head history-head">
+  <div>
+    <div class="eyebrow">Gateway Audit Log</div>
+    <h1>Sending history</h1>
+    <p class="lead">Your last 50 dispatch attempts. Statuses like <strong>pending</strong>, <strong>processed</strong>, or <strong>sent</strong> mean the gateway accepted the message; only <strong>delivered</strong> confirms carrier arrival.</p>
+  </div>
+  <a href="{% url 'send_sms' %}" class="btn-primary btn-link">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+    <span>Compose New SMS</span>
+  </a>
+</div>
+
+{% if logs %}
+  <div class="filter-bar card-compact" role="region" aria-label="Filter message history">
+    <div class="search-box">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input type="search" id="history-search" placeholder="Search by phone number, message text, or status..." aria-label="Filter history">
+    </div>
+    <div class="status-pills" id="status-filter-pills" role="group" aria-label="Filter by status">
+      <button type="button" class="filter-pill is-active" data-status="all">All</button>
+      <button type="button" class="filter-pill" data-status="delivered">Delivered</button>
+      <button type="button" class="filter-pill" data-status="pending">Pending / Sent</button>
+      <button type="button" class="filter-pill" data-status="failed">Failed</button>
+    </div>
+    <span class="hint" id="history-count">Showing {{ logs|length }} message{{ logs|length|pluralize }}</span>
+  </div>
+
+  <div class="table-wrap">
+    <table id="history-table">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Recipient</th>
+          <th>Message</th>
+          <th>Gateway Status</th>
+          <th class="col-action">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr data-search="{{ log.recipient|lower }} {{ log.body|lower }} {{ log.status|lower }}" data-status="{{ log.status|lower }}">
+          <td class="cell-time">{{ log.created_at|date:"M j, Y · g:i a" }}</td>
+          <td class="cell-recipient"><code>{{ log.recipient }}</code></td>
+          <td class="body-cell" title="{{ log.body }}">{{ log.body|truncatechars:90 }}</td>
+          <td>
+            <span class="badge status-{{ log.status }}">
+              <span class="status-dot" aria-hidden="true"></span>
+              {{ log.status }}
+            </span>
+            {% if log.error_message %}<span class="row-error">{{ log.error_message }}</span>{% endif %}
+          </td>
+          <td class="col-action">
+            {% if log.can_refresh %}
+              <form method="post" action="{% url 'refresh_status' log.pk %}" class="refresh-form">
+                {% csrf_token %}
+                <button type="submit" class="secondary">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                  <span>Check status</span>
+                </button>
+              </form>
+            {% else %}
+              <span class="status-final-note">Finalized</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    (function () {
+      var search = document.getElementById("history-search");
+      var rows = Array.from(document.querySelectorAll("#history-table tbody tr"));
+      var countEl = document.getElementById("history-count");
+      var pills = Array.from(document.querySelectorAll("#status-filter-pills .filter-pill"));
+      var activeStatus = "all";
+
+      function applyFilters() {
+        var q = search ? search.value.trim().toLowerCase() : "";
+        var visible = 0;
+        rows.forEach(function (row) {
+          var rowStatus = row.dataset.status || "";
+          var statusMatch = activeStatus === "all" ||
+            (activeStatus === "pending" ? (rowStatus === "pending" || rowStatus === "sent" || rowStatus === "processed") : rowStatus === activeStatus);
+          var textMatch = !q || row.dataset.search.indexOf(q) !== -1;
+          var show = statusMatch && textMatch;
+          row.style.display = show ? "" : "none";
+          if (show) visible++;
+        });
+        countEl.textContent = "Showing " + visible + (visible === 1 ? " message" : " messages");
+      }
+
+      if (search) search.addEventListener("input", applyFilters);
+
+      pills.forEach(function (pill) {
+        pill.addEventListener("click", function () {
+          pills.forEach(function (p) { p.classList.remove("is-active"); });
+          pill.classList.add("is-active");
+          activeStatus = pill.dataset.status;
+          applyFilters();
+        });
+      });
+
+      document.querySelectorAll(".refresh-form").forEach(function (f) {
+        f.addEventListener("submit", function () {
+          var btn = f.querySelector("button");
+          btn.disabled = true;
+          btn.querySelector("span").textContent = "Checking...";
+        });
+      });
+    })();
+  </script>
+{% else %}
+  <div class="empty">
+    <div class="empty-icon" aria-hidden="true">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+    </div>
+    <p class="empty-title">No messages dispatched yet</p>
+    <p>Once you send your first SMS, its gateway acceptance and carrier delivery status will appear here.</p>
+    <a href="{% url 'send_sms' %}" class="btn-primary btn-link">Send your first SMS</a>
+  </div>
+{% endif %}
+{% endblock %}
