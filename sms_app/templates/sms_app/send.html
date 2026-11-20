@@ -1,0 +1,253 @@
+{% extends "sms_app/base.html" %}
+{% block title %}Compose SMS{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="eyebrow">Direct Carrier Dispatch</div>
+  <h1>Send an SMS</h1>
+  <p class="lead">Compose and dispatch a text message through your connected SMSGate Android device. Ensure the gateway phone remains online while sending.</p>
+</div>
+
+<div class="layout">
+  <section class="card form-card" aria-labelledby="compose-heading">
+    <div class="card-header">
+      <div class="card-header-left">
+        <span class="step-badge">1</span>
+        <h2 id="compose-heading" class="card-title">Compose Message</h2>
+      </div>
+      <span class="shortcut-hint" title="Keyboard shortcut">Ctrl + Enter to send</span>
+    </div>
+
+    <form method="post" id="sms-form" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="message error" role="alert">
+          {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="field">
+        <div class="label-row">
+          <label for="{{ form.recipient.id_for_label }}">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+            <span>{{ form.recipient.label }}</span>
+          </label>
+          <span class="format-pill" id="recipient-badge">Awaiting number</span>
+        </div>
+        <div class="input-wrapper">
+          {{ form.recipient }}
+        </div>
+        <p class="hint" id="recipient-hint">Supports international E.164 (<code>+639171234567</code>) or Philippine local format (<code>09171234567</code>).</p>
+        {% if form.recipient.errors %}
+          <div id="error_recipient" role="alert">
+            {% for error in form.recipient.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="field">
+        <div class="label-row">
+          <label for="{{ form.message.id_for_label }}">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+            <span>{{ form.message.label }}</span>
+          </label>
+          <span class="encoding-pill" id="encoding-badge">GSM-7 (160 chars/SMS)</span>
+        </div>
+        {{ form.message }}
+
+        <div class="meter-wrap" aria-hidden="true">
+          <div class="meter-bar" id="char-meter"></div>
+        </div>
+
+        <div class="counter-row">
+          <p class="hint" id="counter" aria-live="polite">0 / 1600 characters</p>
+          <p class="hint segment-pill" id="segment-info">0 SMS segments</p>
+        </div>
+
+        {% if form.message.errors %}
+          <div id="error_message" role="alert">
+            {% for error in form.message.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="quick-templates">
+        <span class="templates-label">Quick templates</span>
+        <div class="chip-group">
+          <button type="button" class="chip" data-template="Hello! This is a test message from our IT 120 SMS Sender web app.">Test greeting</button>
+          <button type="button" class="chip" data-template="Reminder: Our group presentation for IT 120 starts shortly.">Meeting reminder</button>
+          <button type="button" class="chip" data-template="Your verification code is 482910. Please do not share this code.">OTP sample</button>
+          <button type="button" class="chip chip-clear" id="clear-form-btn" title="Clear recipient and message">Clear all</button>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-primary btn-block" id="submit-btn">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          <span class="btn-label">Send SMS Now</span>
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <aside class="preview-shell" aria-label="Live phone message preview">
+    <div class="preview-header-label">
+      <span class="step-badge">2</span>
+      <span>Live Device Preview</span>
+    </div>
+
+    <div class="phone-frame">
+      <div class="phone-status-bar" aria-hidden="true">
+        <span id="status-clock">9:41</span>
+        <div class="phone-island"></div>
+        <span class="signal-icons">5G · 100%</span>
+      </div>
+
+      <div class="phone-header">
+        <div class="avatar" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        </div>
+        <div class="recipient-meta">
+          <span class="preview-label">Text Message · SMS</span>
+          <strong id="preview-to">No recipient yet</strong>
+        </div>
+      </div>
+
+      <div class="phone-screen">
+        <div class="screen-timestamp" id="preview-time">Today</div>
+        <div class="bubble-row">
+          <div class="bubble is-placeholder" id="preview-body">Your message will appear here as you type...</div>
+        </div>
+        <div class="bubble-meta" id="preview-meta">Ready to compose</div>
+      </div>
+
+      <div class="phone-input-bar" aria-hidden="true">
+        <span class="fake-input">Text Message</span>
+        <span class="fake-send">↑</span>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script>
+  (function () {
+    var form = document.getElementById("sms-form");
+    var recipient = document.getElementById("id_recipient");
+    var message = document.getElementById("id_message");
+    var previewTo = document.getElementById("preview-to");
+    var previewBody = document.getElementById("preview-body");
+    var previewMeta = document.getElementById("preview-meta");
+    var previewTime = document.getElementById("preview-time");
+    var statusClock = document.getElementById("status-clock");
+    var counter = document.getElementById("counter");
+    var segmentInfo = document.getElementById("segment-info");
+    var encodingBadge = document.getElementById("encoding-badge");
+    var recipientBadge = document.getElementById("recipient-badge");
+    var charMeter = document.getElementById("char-meter");
+    var submitBtn = document.getElementById("submit-btn");
+    var clearBtn = document.getElementById("clear-form-btn");
+
+    try {
+      var now = new Date();
+      var timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      previewTime.textContent = "Today · " + timeStr;
+      if (statusClock) statusClock.textContent = timeStr;
+    } catch (e) {}
+
+    function normalizePreviewPhone(raw) {
+      var cleaned = raw.replace(/[\s\-().]/g, "").trim();
+      if (!cleaned) return { state: "empty", display: "No recipient yet", label: "Awaiting number" };
+      if (cleaned.startsWith("00")) cleaned = "+" + cleaned.slice(2);
+      else if (/^09\d{9}$/.test(cleaned)) cleaned = "+63" + cleaned.slice(1);
+      else if (/^9\d{9}$/.test(cleaned)) cleaned = "+63" + cleaned;
+      else if (/^639\d{9}$/.test(cleaned)) cleaned = "+" + cleaned;
+
+      if (/^\+[1-9]\d{7,14}$/.test(cleaned)) {
+        return { state: "valid", display: cleaned, label: "Valid E.164" };
+      }
+      return { state: "partial", display: raw.trim(), label: "Check format" };
+    }
+
+    function analyzeSegments(text) {
+      var isUnicode = /[^ -]/.test(text);
+      var singleLimit = isUnicode ? 70 : 160;
+      var multiLimit = isUnicode ? 67 : 153;
+      var count = 0;
+      if (text.length > 0) {
+        count = text.length <= singleLimit ? 1 : Math.ceil(text.length / multiLimit);
+      }
+      return { isUnicode: isUnicode, count: count, singleLimit: singleLimit };
+    }
+
+    function update() {
+      var phoneInfo = normalizePreviewPhone(recipient.value);
+      previewTo.textContent = phoneInfo.display;
+      recipientBadge.textContent = phoneInfo.label;
+      recipientBadge.className = "format-pill state-" + phoneInfo.state;
+
+      var text = message.value;
+      var maxLen = parseInt(message.getAttribute("maxlength") || "1600", 10);
+
+      if (text) {
+        previewBody.textContent = text;
+        previewBody.classList.remove("is-placeholder");
+      } else {
+        previewBody.textContent = "Your message will appear here as you type...";
+        previewBody.classList.add("is-placeholder");
+      }
+
+      var seg = analyzeSegments(text);
+      encodingBadge.textContent = seg.isUnicode ? "Unicode (70 chars/SMS)" : "GSM-7 (160 chars/SMS)";
+      encodingBadge.classList.toggle("is-unicode", seg.isUnicode);
+
+      counter.textContent = text.length + " / " + maxLen + " characters";
+      segmentInfo.textContent = seg.count === 0
+        ? "0 SMS segments"
+        : seg.count + (seg.count === 1 ? " SMS segment" : " SMS segments");
+
+      previewMeta.textContent = text.length === 0
+        ? "Ready to compose"
+        : seg.count + (seg.count === 1 ? " segment · " : " segments · ") + (seg.isUnicode ? "Unicode" : "GSM-7");
+
+      var pct = Math.min(100, Math.round((text.length / maxLen) * 100));
+      charMeter.style.width = pct + "%";
+      charMeter.classList.toggle("is-near-limit", pct >= 85);
+    }
+
+    document.querySelectorAll(".chip[data-template]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        message.value = btn.getAttribute("data-template");
+        message.focus();
+        update();
+      });
+    });
+
+    if (clearBtn) {
+      clearBtn.addEventListener("click", function () {
+        recipient.value = "";
+        message.value = "";
+        recipient.focus();
+        update();
+      });
+    }
+
+    message.addEventListener("keydown", function (e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        form.requestSubmit ? form.requestSubmit() : form.submit();
+      }
+    });
+
+    form.addEventListener("submit", function () {
+      if (submitBtn.dataset.submitted === "true") return false;
+      submitBtn.dataset.submitted = "true";
+      submitBtn.classList.add("is-loading");
+      submitBtn.querySelector(".btn-label").textContent = "Dispatching to gateway...";
+    });
+
+    recipient.addEventListener("input", update);
+    message.addEventListener("input", update);
+    update();
+  })();
+</script>
+{% endblock %}

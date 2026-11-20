@@ -1,0 +1,13 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+.env
+db.sqlite3
+*.sqlite3
+staticfiles/
+.vscode/
+.idea/
+.claude/
+graphify-out/
+*.pdf
